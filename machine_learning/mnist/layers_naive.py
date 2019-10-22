@@ -35,7 +35,7 @@ class Layer:
         (d loss / d x)  = (d loss / d output) * (d output / d x)
         Luckily, you already receive (d loss / d output) as grad_output, so you only need to multiply it by (d output / d x)
         If your layer has parameters (e.g. dense layer), you need to update them here using d loss / d x
-        
+
         returns (d loss / d input) = (d loss / d output) * (d output / d input)
         """
 
@@ -64,7 +64,7 @@ class ReLU(Layer):
         """
         Compute gradient of loss w.r.t. ReLU input
         """
-        
+
         return grad_output * (input > 0)
 
 
@@ -105,14 +105,14 @@ class Dense(Layer):
 
         grad_loss_input = np.matmul(grad_output, self.weights.T)
         grad_loss_weights = np.matmul(input.T, grad_output)
-        grad_loss_biases = np.matmul(np.ones(input.shape[0]), grad_output) 
+        grad_loss_biases = np.matmul(np.ones(input.shape[0]), grad_output)
 
-        self.weights -= self.learning_rate * grad_loss_weights 
+        self.weights -= self.learning_rate * grad_loss_weights
         self.biases -= self.learning_rate * grad_loss_biases
 
         return grad_loss_input
 
-    
+
 # Layer ideas from http://cs231n.github.io/assignments2015/assignment2/
 
 class Conv2d(Layer):
@@ -144,9 +144,9 @@ class Conv2d(Layer):
         """
 
         batch_size, in_channels, h, w = input.shape
-        h_out = h - self.h_kernel + 1 
+        h_out = h - self.h_kernel + 1
         w_out = w - self.w_kernel + 1
-        
+
         output = np.zeros((batch_size, self.out_channels, h_out, w_out))
 
         for n in range(batch_size):
@@ -166,7 +166,7 @@ class Conv2d(Layer):
 
         grad_output shape: [batch, out_channels, h_out, w_out]
         """
-        
+
         batch_size, in_channels, h, w = input.shape
         _, _, h_out, w_out = grad_output.shape
 
@@ -176,22 +176,22 @@ class Conv2d(Layer):
         for n in range(batch_size):
             grad_batch_n = grad_input[n,:,:,:]
             batch_n = input[n,:,:,:]
-            
+
             for c in range(self.out_channels):
                 for h0 in range(h_out):
                     for w0 in range(w_out):
                         h1, w1 = h0 + self.h_kernel, w0 + self.w_kernel
-                        
+
                         grad_batch_n[:, h0:h1, w0:w1] += self.weights[:,c,:,:] * grad_output[n,c,h0,w0]
                         grad_weights[:,c,:,:] += batch_n[:, h0:h1, w0:w1] * grad_output[n,c,h0,w0]
-                        
+
             grad_input[n,:,:,:] = grad_batch_n
 
         self.weights -= self.learning_rate * grad_weights
-        
+
         return grad_input
-    
-    
+
+
 class Maxpool2d(Layer):
     def __init__(self, kernel_size):
         """
@@ -216,40 +216,40 @@ class Maxpool2d(Layer):
         input shape: [batch, in_channels, h, w]
         output shape: [batch, out_channels, h_out, w_out]
         """
-        
+
         batch_size, in_channels, h, w = input.shape
-        input_reshaped = input.reshape(batch_size, in_channels, 
+        input_reshaped = input.reshape(batch_size, in_channels,
                               h // self.kernel_size, self.kernel_size,
                               w // self.kernel_size, self.kernel_size)
-        
+
         return np.max(input_reshaped, axis=(3, 5))
 
     def backward(self, input, grad_output):
         """
         Compute gradient of loss w.r.t. Maxpool2d input
         """
-            
+
         batch_size, in_channels, h, w = input.shape
-        input_reshaped  = input.reshape(batch_size, in_channels, 
+        input_reshaped  = input.reshape(batch_size, in_channels,
                               h // self.kernel_size, self.kernel_size,
                               w // self.kernel_size, self.kernel_size)
-        
+
         output = np.max(input_reshaped, axis=(3, 5))
         output_newaxis = output[:, :, :, np.newaxis, :, np.newaxis]
-        
+
         mask = (input_reshaped == output_newaxis)
-        
+
         grad_input_reshaped = np.zeros_like(input_reshaped)
         grad_output_newaxis = grad_output[:, :, :, np.newaxis, :, np.newaxis]
-        
+
         grad_output_broadcast, _ = np.broadcast_arrays(grad_output_newaxis, grad_input_reshaped)
         grad_input_reshaped[mask] = grad_output_broadcast[mask]
         grad_input_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
         grad_input = grad_input_reshaped.reshape(input.shape)
-        
+
         return grad_input
 
-    
+
 class Flatten(Layer):
     def __init__(self):
         """
@@ -311,3 +311,4 @@ def grad_softmax_crossentropy_with_logits(logits, y_true):
     y_matrix[np.arange(logits.shape[0]), y_true] = 1
 
     return (softmax - y_matrix) / y_true.shape[0]
+

@@ -35,7 +35,7 @@ class Layer:
         (d loss / d x)  = (d loss / d output) * (d output / d x)
         Luckily, you already receive (d loss / d output) as grad_output, so you only need to multiply it by (d output / d x)
         If your layer has parameters (e.g. dense layer), you need to update them here using d loss / d x
-        
+
         returns (d loss / d input) = (d loss / d output) * (d output / d input)
         """
 
@@ -64,7 +64,7 @@ class ReLU(Layer):
         """
         Compute gradient of loss w.r.t. ReLU input
         """
-        
+
         return grad_output * (input > 0)
 
 
@@ -105,9 +105,9 @@ class Dense(Layer):
 
         grad_loss_input = np.matmul(grad_output, self.weights.T)
         grad_loss_weights = np.matmul(input.T, grad_output)
-        grad_loss_biases = np.matmul(np.ones(input.shape[0]), grad_output) 
+        grad_loss_biases = np.matmul(np.ones(input.shape[0]), grad_output)
 
-        self.weights -= self.learning_rate * grad_loss_weights 
+        self.weights -= self.learning_rate * grad_loss_weights
         self.biases -= self.learning_rate * grad_loss_biases
 
         return grad_loss_input
@@ -118,21 +118,21 @@ class Dense(Layer):
 def get_im2col_indices(input_shape, h_kernel, w_kernel):
 
     batch, in_channel, h, w = input_shape
-    
+
     h_out = h - h_kernel + 1
     w_out = w - w_kernel + 1
 
     i0 = np.repeat(np.arange(h_kernel), w_kernel)
     i0 = np.tile(i0, in_channel)
     i_bias = np.repeat(np.arange(h_out), w_out)
-    
+
     j0 = np.tile(np.arange(w_kernel), h_kernel * in_channel)
     j_bias = np.tile(np.arange(w_out), h_out)
 
     i = i0.reshape(-1, 1) + i_bias.reshape(1, -1)
     j = j0.reshape(-1, 1) + j_bias.reshape(1, -1)
     k = np.repeat(np.arange(in_channel), h_kernel * w_kernel).reshape(-1, 1)
-    
+
     return (k, i, j)
 
 
@@ -144,21 +144,21 @@ def im2col_indices(input, h_kernel, w_kernel):
 
     in_channel = input.shape[1]
     cols = cols.transpose(1, 2, 0).reshape(h_kernel * w_kernel * in_channel, -1)
-    
+
     return cols
 
 
 def col2im_indices(cols, input_shape, h_kernel=3, w_kernel=3):
-    
+
     batch, in_channel, h, w = input_shape
     output = np.zeros((batch, in_channel, h, w), dtype=cols.dtype)
-    
+
     k, i, j = get_im2col_indices(input_shape, h_kernel, w_kernel)
-    
+
     cols_reshaped = cols.reshape(in_channel * h_kernel * w_kernel, -1, batch)
     cols_reshaped = cols_reshaped.transpose(2, 0, 1)
     output[slice(None), k, i, j] = cols_reshaped
-    
+
     return output
 
 # Layer ideas from http://cs231n.github.io/assignments2015/assignment2/
@@ -182,7 +182,7 @@ class Conv2d(Layer):
         h_kernel, w_kernel = kernel_size
         self.weights = np.random.normal(scale=np.sqrt(1 / (in_channels * h_kernel * w_kernel )),
                                         size=(out_channels, in_channels, h_kernel, w_kernel))
-         
+
 
     def forward(self, input):
         """
@@ -193,16 +193,16 @@ class Conv2d(Layer):
         """
 
         batch_size, in_channels, h, w = input.shape
-        h_out = h - self.h_kernel + 1 
+        h_out = h - self.h_kernel + 1
         w_out = w - self.w_kernel + 1
 
         input_cols = im2col_indices(input, self.h_kernel, self.w_kernel)
         weights_cols = self.weights.reshape(self.out_channels, -1)
 
-        output = np.matmul(weights_cols, input_cols) 
-        output = output.reshape(self.out_channels, h_out, w_out, batch_size) 
+        output = np.matmul(weights_cols, input_cols)
+        output = output.reshape(self.out_channels, h_out, w_out, batch_size)
         output = output.transpose(3, 0, 1, 2)
-        
+
         return output
 
     def backward(self, input, grad_output):
@@ -211,21 +211,21 @@ class Conv2d(Layer):
 
         grad_output shape: [batch, out_channels, h_out, w_out]
         """
-        
+
         grad_output_reshaped = grad_output.transpose(1, 2, 3, 0).reshape(self.out_channels, -1)
         input_cols = im2col_indices(input, self.h_kernel, self.w_kernel)
         grad_weights = np.matmul(grad_output_reshaped, input_cols.T)
         grad_weights = grad_weights.reshape(self.weights.shape)
-        
+
         weights_reshaped = self.weights.reshape(self.out_channels, -1)
         grad_input_cols = np.matmul(weights_reshaped.T, grad_output_reshaped)
         grad_input = col2im_indices(grad_input_cols, input.shape, self.h_kernel, self.w_kernel)
 
-        self.weights -= self.learning_rate * grad_weights  
+        self.weights -= self.learning_rate * grad_weights
 
         return grad_input
-    
-    
+
+
 class Maxpool2d(Layer):
     def __init__(self, kernel_size):
         """
@@ -250,40 +250,40 @@ class Maxpool2d(Layer):
         input shape: [batch, in_channels, h, w]
         output shape: [batch, out_channels, h_out, w_out]
         """
-        
+
         batch_size, in_channels, h, w = input.shape
-        input_reshaped = input.reshape(batch_size, in_channels, 
+        input_reshaped = input.reshape(batch_size, in_channels,
                               h // self.kernel_size, self.kernel_size,
                               w // self.kernel_size, self.kernel_size)
-        
+
         return np.max(input_reshaped, axis=(3, 5))
 
     def backward(self, input, grad_output):
         """
         Compute gradient of loss w.r.t. Maxpool2d input
         """
-            
+
         batch_size, in_channels, h, w = input.shape
-        input_reshaped  = input.reshape(batch_size, in_channels, 
+        input_reshaped  = input.reshape(batch_size, in_channels,
                               h // self.kernel_size, self.kernel_size,
                               w // self.kernel_size, self.kernel_size)
-        
+
         output = np.max(input_reshaped, axis=(3, 5))
         output_newaxis = output[:, :, :, np.newaxis, :, np.newaxis]
-        
+
         mask = (input_reshaped == output_newaxis)
-        
+
         grad_input_reshaped = np.zeros_like(input_reshaped)
         grad_output_newaxis = grad_output[:, :, :, np.newaxis, :, np.newaxis]
-        
+
         grad_output_broadcast, _ = np.broadcast_arrays(grad_output_newaxis, grad_input_reshaped)
         grad_input_reshaped[mask] = grad_output_broadcast[mask]
         grad_input_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
         grad_input = grad_input_reshaped.reshape(input.shape)
-        
+
         return grad_input
 
-    
+
 class Flatten(Layer):
     def __init__(self):
         """
@@ -345,3 +345,4 @@ def grad_softmax_crossentropy_with_logits(logits, y_true):
     y_matrix[np.arange(logits.shape[0]), y_true] = 1
 
     return (softmax - y_matrix) / y_true.shape[0]
+

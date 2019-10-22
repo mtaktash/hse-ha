@@ -1,2 +1,2 @@
 # hse-ha
-Home assignments for my courses
+Home assignments for some of my ML/DL courses which may be helpful
